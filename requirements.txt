@@ -1,0 +1,7 @@
+requests
+bs4
+simplejson
+git+https://github.com/Ashwin-Surana/scrapkit
+django
+djangorestframework
+mongoengine
