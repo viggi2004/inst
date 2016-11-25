@@ -32,7 +32,12 @@ def home(request):
     session = Session()
     html = session.get(location_url)
     #re.findall('<script type="text/javascript">(.*)</script>', html.text)
+    session.cookies.set('ig_pr','2')
+    session.cookies.set('ig_vw','729')
     js = ''
+    end_cursor = ''
+    has_next_page = False
+    url_load_more_userids = 'https://www.instagram.com/query/'
     #re.search('(?<=name\':\')[a-z]*', a)
     #gr=re.search('(?<=viewport_width": ")([a-zA-Z0-9]*)', html.text)
     gr = re.findall('<script type="text/javascript">(.*)</script>', html.text)
@@ -41,11 +46,30 @@ def home(request):
             js = re.sub("window._sharedData[ ]+=[ ]+","",item)
     userids = []
     js = json.loads(urllib.unquote(js.strip(';')))
-    for feed in js['entry_data']['LocationsPage']:
-        for item in feed['location']['media']['nodes']:
-            print userids.append(item['code'])
 
-    print userids
+    for feed in js['entry_data']['LocationsPage']:
+        has_next_page = feed['location']['media']['page_info']['has_next_page']
+        end_cursor = feed['location']['media']['page_info']['end_cursor']   
+        for item in feed['location']['media']['nodes']:
+            userids.append(item['code'])
+
+    headers = {
+        'accept' : '*/*',
+        'content-type':'application/x-www-form-urlencoded',
+        'origin':'https://www.instagram.com',
+        'pragma':'no-cache',
+        'referer': location_url,
+        'x-instagram-ajax':'1',
+        'x-requested-with':'XMLHttpRequest',
+        'x-csrftoken': session.cookies['csrftoken']
+    }
+    query = "q=ig_location(215822965)+%7B+media.after(END-CURSOR%2C+12)+%7B%0A++count%2C%0A++nodes+%7B%0A++++caption%2C%0A++++code%2C%0A++++comments+%7B%0A++++++count%0A++++%7D%2C%0A++++comments_disabled%2C%0A++++date%2C%0A++++dimensions+%7B%0A++++++height%2C%0A++++++width%0A++++%7D%2C%0A++++display_src%2C%0A++++id%2C%0A++++is_video%2C%0A++++likes+%7B%0A++++++count%0A++++%7D%2C%0A++++owner+%7B%0A++++++id%0A++++%7D%2C%0A++++thumbnail_src%2C%0A++++video_views%0A++%7D%2C%0A++page_info%0A%7D%0A+%7D&ref=locations%3A%3Ashow&query_id="
+    if has_next_page:
+        query = query.replace('END-CURSOR', end_cursor)
+        response = session.post(url_load_more_userids, headers=headers, data=query)
+        print session.cookies
+        print response.request.headers
+        print response.text
 
     user_url = 'https://www.instagram.com/p/USER-ID/?taken-at=215822965'
     for userid in userids:
@@ -58,8 +82,8 @@ def home(request):
                 js = re.sub("window._sharedData[ ]+=[ ]+","",item)
         js = json.loads(urllib.unquote(js.strip(';')))
 
-        for item in js['entry_data']['PostPage']:
-            print item['media']['owner']['username']
+        #for item in js['entry_data']['PostPage']:
+            #print item['media']['owner']['username']
 
     #vw = gr.group(1)
     # gr=re.search('(?<=pixel_ratio": ")([a-zA-Z0-9]*)', html.text)
